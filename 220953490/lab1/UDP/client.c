@@ -6,8 +6,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 
 int main() {
     int s, r, recb, sntb, x;
@@ -15,9 +13,10 @@ int main() {
     socklen_t len;
     printf("INPUT port number: ");
     scanf("%d", &x);
+    getchar();  // Consume newline character after port number input through scanf
 
-    struct sockaddr_in server, client;
-    char buff[50];
+    struct sockaddr_in server;
+    char buff[1024];  //buffer size
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s == -1) {
@@ -35,9 +34,14 @@ int main() {
 
     while (1) {
         printf("\n\nType Message: ");
-        scanf("%s", buff);
+        //fgets
+        fgets(buff, sizeof(buff), stdin);
 
-        sntb = sendto(s, buff, sizeof(buff), 0, (struct sockaddr*)&server, len);
+        //Remove the newline character that fgets might leave at the end with a null temrinator 0
+        buff[strcspn(buff, "\n")] = 0;
+
+        //Send message to server
+        sntb = sendto(s, buff, strlen(buff) + 1, 0, (struct sockaddr*)&server, len);
         if (sntb == -1) {
             close(s);
             printf("\nMessage sending failed.");
@@ -47,6 +51,7 @@ int main() {
         if (!strcmp(buff, "stop"))
             break;
 
+        //Receive response from the server
         recb = recvfrom(s, buff, sizeof(buff), 0, (struct sockaddr*)&server, &sa);
         if (recb == -1) {
             printf("\nMessage receiving failed.");
@@ -54,8 +59,7 @@ int main() {
             exit(0);
         }
 
-        printf("\nMessage received: ");
-        printf("%s", buff);
+        printf("\nMessage received: %s", buff);
 
         if (!strcmp(buff, "stop"))
             break;
