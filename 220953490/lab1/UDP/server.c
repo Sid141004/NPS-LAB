@@ -1,21 +1,24 @@
 #include <string.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 int main() {
     int s, r, recb, sntb, x;
     int ca;
+    socklen_t len;
     printf("INPUT port number: ");
     scanf("%d", &x);
-    socklen_t len;
-    struct sockaddr_in server, client;
-    char buff[50];
+    getchar();  // Consume newline character after port number input
 
-    s = socket(AF_INET, SOCK_DGRAM, 0);//0 means default protocol . for dgram , it is UDP by default
+    struct sockaddr_in server, client;
+    char buff[1024];  // Increased buffer size to handle larger messages
+
+    s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s == -1) {
         printf("\nSocket creation error.");
         exit(0);
@@ -29,7 +32,7 @@ int main() {
     len = sizeof(client);
     ca = sizeof(client);
 
-    r = bind(s, (struct sockaddr*)&server, sizeof(server));//(s is socket, IP address+port number , size of address?)
+    r = bind(s, (struct sockaddr*)&server, sizeof(server));
     if (r == -1) {
         printf("\nBinding error.");
         exit(0);
@@ -37,23 +40,29 @@ int main() {
     printf("\nSocket bound.");
 
     while (1) {
+        // Receive message from client
         recb = recvfrom(s, buff, sizeof(buff), 0, (struct sockaddr*)&client, &ca);
         if (recb == -1) {
             printf("\nMessage receiving failed.");
             close(s);
             exit(0);
         }
-        printf("\nMessage received: ");
-        printf("%s", buff);
+        printf("\nMessage received: %s", buff);
 
         if (!strcmp(buff, "stop")) {
             break;
         }
 
+        // Prompt server for reply
         printf("\n\nType Message: ");
-        scanf("%s", buff);
+        // Use fgets to allow spaces in the message
+        fgets(buff, sizeof(buff), stdin);
 
-        sntb = sendto(s, buff, sizeof(buff), 0, (struct sockaddr*)&client, len);
+        // Remove the newline character that fgets might leave at the end
+        buff[strcspn(buff, "\n")] = 0;
+
+        // Send response back to client
+        sntb = sendto(s, buff, strlen(buff) + 1, 0, (struct sockaddr*)&client, len);
         if (sntb == -1) {
             printf("\nMessage sending failed.");
             close(s);
